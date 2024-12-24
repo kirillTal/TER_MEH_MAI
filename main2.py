@@ -11,6 +11,8 @@ R = 0.5
 l = 0.5
 g = 9.81
 t = sp.Symbol('t')
+theta_0_deg = 45  # начальный угол theta
+phi_0_deg = 0     # начальный угол phi
 
 # Обобщенные координаты
 phi = sp.Function('phi')(t)
@@ -50,6 +52,16 @@ solutions = sp.solve([lagrange_phi, lagrange_theta], (phi_ddot, theta_ddot))
 phi_ddot_expr = solutions[phi_ddot]
 theta_ddot_expr = solutions[theta_ddot]
 
+# Выражение для реакции N
+N_expr = (
+    m2 * (
+        g * sp.cos(phi)
+        - (R - r) * theta_dot**2 * sp.cos(phi - theta)
+        + theta_ddot * sp.sin(phi - theta)
+    )
+    + l * phi_dot**2
+)
+
 # Дискретизация времени
 T_vals = np.linspace(0, 10, 500)
 phi_vals = np.zeros_like(T_vals)
@@ -57,14 +69,18 @@ theta_vals = np.zeros_like(T_vals)
 phi_dot_vals = np.zeros_like(T_vals)
 theta_dot_vals = np.zeros_like(T_vals)
 
-# Начальные условия
-phi_vals[0] = np.pi / 6
-theta_vals[0] = np.pi / 4
+
+
+# Конвертация в радианы
+theta_vals[0] = np.radians(theta_0_deg)
+phi_vals[0] = np.radians(phi_0_deg)
 phi_dot_vals[0] = 0
 theta_dot_vals[0] = 0
 
-# интегрирование
+# Интегрирование
 dt = T_vals[1] - T_vals[0]
+N_vals = np.zeros_like(T_vals)
+
 for i in range(1, len(T_vals)):
     phi_ddot_val = float(phi_ddot_expr.subs({phi: phi_vals[i-1], theta: theta_vals[i-1], phi_dot: phi_dot_vals[i-1], theta_dot: theta_dot_vals[i-1]}))
     theta_ddot_val = float(theta_ddot_expr.subs({phi: phi_vals[i-1], theta: theta_vals[i-1], phi_dot: phi_dot_vals[i-1], theta_dot: theta_dot_vals[i-1]}))
@@ -73,6 +89,17 @@ for i in range(1, len(T_vals)):
     theta_dot_vals[i] = theta_dot_vals[i-1] + theta_ddot_val * dt
     phi_vals[i] = phi_vals[i-1] + phi_dot_vals[i] * dt
     theta_vals[i] = theta_vals[i-1] + theta_dot_vals[i] * dt
+
+    # Вычисление N(t)
+    N_vals[i] = float(
+        N_expr.subs({
+            phi: phi_vals[i],
+            theta: theta_vals[i],
+            phi_dot: phi_dot_vals[i],
+            theta_dot: theta_dot_vals[i],
+            theta_ddot: theta_ddot_val
+        })
+    )
 
 # Координаты для анимации
 x2_vals = (R - r) * np.sin(theta_vals)
@@ -109,11 +136,12 @@ circle3, = ax[0].plot([], [], 'purple')
 
 ani = FuncAnimation(fig, update, frames=len(T_vals), interval=20, blit=True)
 
-# Графики обобщённых координат справа
-ax[1].plot(T_vals, phi_vals, label='$ph(t)$')
+# Графики обобщённых координат и N(t) справа
+ax[1].plot(T_vals, phi_vals, label='$phi(t)$')
 ax[1].plot(T_vals, theta_vals, label='$\theta(t)$')
+ax[1].plot(T_vals, N_vals, label='$N(t)$', linestyle='--')
 ax[1].set_xlabel('Время (с)')
-ax[1].set_ylabel('Угол (рад)')
+ax[1].set_ylabel('Величина')
 ax[1].legend()
 ax[1].grid()
 
