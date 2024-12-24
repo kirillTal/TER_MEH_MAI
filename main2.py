@@ -2,131 +2,120 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import sympy as sp
-import math
 
-def Сircle1(X, Y):
-    CX = [X + R * math.cos(i / 100) for i in range(0, 628)]
-    CY = [Y + R * math.sin(i / 100) for i in range(0, 628)]
-    return CX, CY
-
-def Сircle2(X, Y):
-    CX = [X + r * math.cos(i / 100) for i in range(0, 628)]
-    CY = [Y + r * math.sin(i / 100) for i in range(0, 628)]
-    return CX, CY
-
-def Сircle3(X, Y):
-    CX = [X + r * 0.3 * math.cos(i / 100) for i in range(0, 628)]
-    CY = [Y + r * 0.3 * math.sin(i / 100) for i in range(0, 628)]
-    return CX, CY
-
-def anima(i):
-    Beam_1.set_data([X20[i], X30[i]], [Y20[i], Y30[i]])
-    Beam_2.set_data([X10[i], X20[i]], [Y10[i], Y20[i]])
-    Beam_3.set_data([X20[i], X20[i]], [Y20[i], -0.9])
-    circle1.set_data(*Сircle1(X10[i], Y10[i]))
-    circle2.set_data(*Сircle2(X20[i], Y20[i]))
-    circle3.set_data(*Сircle3(X30[i], Y30[i]))
-    return circle1, circle2, circle3, Beam_1, Beam_2, Beam_3
-
-
-def diffur():
-    dy = sp.zeros(4)
-    return dy
-
-t = sp.Symbol('t')
+# Определение параметров
 m1 = 2.0
 m2 = 1.0
 r = 0.1
 R = 0.5
 l = 0.5
 g = 9.81
-omega0 = math.pi/4
-domega0 = 0
-phi0 = 0
-dphi0 = 0
-# phi = sp.sin(math.pi/6*t)
-phi = sp.sin(math.pi/6*t)
-dphi = sp.diff(phi, t)
-ddphi = sp.diff(dphi, t)
-# omega = sp.sin(math.pi/4*t)
-omega = sp.sin(math.pi/4*t)
-domega = sp.diff(omega, t)
-ddomega = sp.diff(domega, t)
+t = sp.Symbol('t')
 
-x2 = (R-r) * sp.sin(ddomega)
-y2 = -(R-r) * sp.cos(ddomega)
-vx2 = sp.diff(x2, t)
-vy2 = sp.diff(y2, t)
-ax2 = sp.diff(vx2, t)
-ay2 = sp.diff(vy2, t)
+# Обобщенные координаты
+phi = sp.Function('phi')(t)
+theta = sp.Function('theta')(t)
 
-# x3 = x2 + l * sp.sin(phi)
-# y3 = y2 - l * sp.cos(phi)
-x3 = x2 + l * sp.sin(ddphi * sp.cos(phi-omega) + dphi ** 2 * sp.sin(phi-omega))
-y3 = y2 - l * sp.cos(ddphi * sp.cos(phi-omega) + dphi ** 2 * sp.sin(phi-omega))
-vx3 = sp.diff(x3, t)
-vy3 = sp.diff(y3, t)
-ax3 = sp.diff(vx3, t)
-ay3 = sp.diff(vy3, t)
+# Скорости и ускорения
+phi_dot = sp.diff(phi, t)
+phi_ddot = sp.diff(phi_dot, t)
+theta_dot = sp.diff(theta, t)
+theta_ddot = sp.diff(theta_dot, t)
 
-T = np.linspace(0, 50, 800)
-X10 = np.zeros_like(T)
-Y10 = np.zeros_like(T)
-X20 = np.zeros_like(T)
-Y20 = np.zeros_like(T)
-X30 = np.zeros_like(T)
-Y30 = np.zeros_like(T)
+# Координаты точек
+x2 = (R - r) * sp.sin(theta)
+y2 = -(R - r) * sp.cos(theta)
+x3 = x2 + l * sp.sin(phi)
+y3 = y2 - l * sp.cos(phi)
 
-V = np.zeros_like(T)
+# Кинетическая энергия
+T1 = (1/2) * m1 * (sp.diff(x2, t)**2 + sp.diff(y2, t)**2)
+T2 = (1/2) * m2 * (sp.diff(x3, t)**2 + sp.diff(y3, t)**2)
+T = T1 + T2
 
+# Потенциальная энергия
+V1 = m1 * g * y2
+V2 = m2 * g * y3
+V = V1 + V2
 
-x = np.linspace(0, 0, 800)
-y = np.linspace(-0.6, 0, 800)
+# Лагранжиан
+L = T - V
 
-for i in np.arange(len(T)):
-    X20[i] = sp.Subs(x2, t, T[i])
-    Y20[i] = sp.Subs(y2, t, T[i])
-    X30[i] = sp.Subs(x3, t, T[i])
-    Y30[i] = sp.Subs(y3, t, T[i])
+# Уравнения Лагранжа
+lagrange_phi = sp.diff(sp.diff(L, phi_dot), t) - sp.diff(L, phi)
+lagrange_theta = sp.diff(sp.diff(L, theta_dot), t) - sp.diff(L, theta)
 
-fig = plt.figure()
-ax1 = fig.add_subplot(1, 2, 1)
-ax1.axis('equal')
-ax1.set(xlim=[-1.5, 1.5], ylim=[-1.5, 1.5])
-ax1.plot(x, y, linestyle = '--', linewidth = 1, color = 'grey')
+# Решение уравнений движения
+solutions = sp.solve([lagrange_phi, lagrange_theta], (phi_ddot, theta_ddot))
+phi_ddot_expr = solutions[phi_ddot]
+theta_ddot_expr = solutions[theta_ddot]
 
-ax2 = fig.add_subplot(4, 2, 2)
-ax2.plot(T, X20)
-plt.title('Vx of the O1')
-plt.xlabel('t values')
-plt.ylabel('Vx values')
+# Дискретизация времени
+T_vals = np.linspace(0, 10, 500)
+phi_vals = np.zeros_like(T_vals)
+theta_vals = np.zeros_like(T_vals)
+phi_dot_vals = np.zeros_like(T_vals)
+theta_dot_vals = np.zeros_like(T_vals)
 
-ax3 = fig.add_subplot(4, 2, 4)
-ax3.plot(T, Y20)
-plt.title('Vy of the O1')
-plt.xlabel('t values')
-plt.ylabel('Vy values')
+# Начальные условия
+phi_vals[0] = np.pi / 6
+theta_vals[0] = np.pi / 4
+phi_dot_vals[0] = 0
+theta_dot_vals[0] = 0
 
-ax4 = fig.add_subplot(4, 2, 6)
-ax4.plot(T, X30)
-plt.title('Vx of the Point A')
-plt.xlabel('t values')
-plt.ylabel('Vx values')
+# интегрирование
+dt = T_vals[1] - T_vals[0]
+for i in range(1, len(T_vals)):
+    phi_ddot_val = float(phi_ddot_expr.subs({phi: phi_vals[i-1], theta: theta_vals[i-1], phi_dot: phi_dot_vals[i-1], theta_dot: theta_dot_vals[i-1]}))
+    theta_ddot_val = float(theta_ddot_expr.subs({phi: phi_vals[i-1], theta: theta_vals[i-1], phi_dot: phi_dot_vals[i-1], theta_dot: theta_dot_vals[i-1]}))
 
-ax5 = fig.add_subplot(4, 2, 8)
-ax5.plot(T, Y30)
-plt.title('Vy of the Point A')
-plt.xlabel('t values')
-plt.ylabel('Vy values')
+    phi_dot_vals[i] = phi_dot_vals[i-1] + phi_ddot_val * dt
+    theta_dot_vals[i] = theta_dot_vals[i-1] + theta_ddot_val * dt
+    phi_vals[i] = phi_vals[i-1] + phi_dot_vals[i] * dt
+    theta_vals[i] = theta_vals[i-1] + theta_dot_vals[i] * dt
 
-plt.subplots_adjust(wspace=0.3, hspace=0.7)
+# Координаты для анимации
+x2_vals = (R - r) * np.sin(theta_vals)
+y2_vals = -(R - r) * np.cos(theta_vals)
+x3_vals = x2_vals + l * np.sin(phi_vals)
+y3_vals = y2_vals - l * np.cos(phi_vals)
 
-Beam_1, = ax1.plot([X20[0], X20[0] + l * sp.sin(math.pi)], [Y20[0], Y20[0] + l * sp.cos(math.pi)], 'black')
-Beam_2, = ax1.plot([X10[0], X20[0]], [Y10[0], Y20[0]], linestyle = '--', linewidth = 1, color = 'grey')
-Beam_3, = ax1.plot([X20[0], X20[0]], [Y20[0], y[0]], linestyle = '--', linewidth = 1, color = 'grey')
-circle1, = ax1.plot(*Сircle1(X10[0], Y10[0]), 'black')
-circle2, = ax1.plot(*Сircle2(X20[0], Y20[0]), 'black')
-circle3, = ax1.plot(*Сircle3(X30[0], Y30[0]), 'black')
+# Функции для рисования окружностей
+def circle(X, Y, radius):
+    angles = np.linspace(0, 2 * np.pi, 100)
+    return X + radius * np.cos(angles), Y + radius * np.sin(angles)
 
-anim = FuncAnimation(fig, anima, frames=800, interval=10, blit=True)
+# Анимация
+def update(frame):
+    Beam_1.set_data([x2_vals[frame], x3_vals[frame]], [y2_vals[frame], y3_vals[frame]])
+    Beam_2.set_data([0, x2_vals[frame]], [0, y2_vals[frame]])
+    circle1.set_data(*circle(0, 0, R))
+    circle2.set_data(*circle(x2_vals[frame], y2_vals[frame], r))
+    circle3.set_data(*circle(x3_vals[frame], y3_vals[frame], r * 0.3))
+    return Beam_1, Beam_2, circle1, circle2, circle3
+
+# Построение графиков
+fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+
+# Анимация слева
+ax[0].axis('equal')
+ax[0].set_xlim(-1, 1)
+ax[0].set_ylim(-1, 1)
+Beam_1, = ax[0].plot([], [], 'b')
+Beam_2, = ax[0].plot([], [], 'g')
+circle1, = ax[0].plot([], [], 'r')
+circle2, = ax[0].plot([], [], 'orange')
+circle3, = ax[0].plot([], [], 'purple')
+
+ani = FuncAnimation(fig, update, frames=len(T_vals), interval=20, blit=True)
+
+# Графики обобщённых координат справа
+ax[1].plot(T_vals, phi_vals, label='$ph(t)$')
+ax[1].plot(T_vals, theta_vals, label='$\theta(t)$')
+ax[1].set_xlabel('Время (с)')
+ax[1].set_ylabel('Угол (рад)')
+ax[1].legend()
+ax[1].grid()
+
+plt.tight_layout()
 plt.show()
